@@ -2,6 +2,9 @@
 
 # 默认代理端口
 PROXY_PORT=7890
+# 默认本地监听端口
+LOCAL_HTTP_PORT=18080
+LOCAL_HTTPS_PORT=18443
 
 # 解析命令行参数
 if [ "$1" = "stop" ]; then
@@ -41,8 +44,8 @@ stop_proxy() {
         rm -f "$PIDFILE"
     else
         echo "正在查找并关闭 socat 代理进程..."
-        pkill -f "socat TCP-LISTEN:80" 2>/dev/null || true
-        pkill -f "socat TCP-LISTEN:443" 2>/dev/null || true
+        pkill -f "socat TCP-LISTEN:$LOCAL_HTTP_PORT" 2>/dev/null || true
+        pkill -f "socat TCP-LISTEN:$LOCAL_HTTPS_PORT" 2>/dev/null || true
     fi
 
     if [ -f /etc/hosts.backup.2628 ]; then
@@ -89,13 +92,15 @@ start_proxy() {
 EOF
 
     # 启动 socat 转发并保存进程ID
-    socat TCP-LISTEN:80,fork,reuseaddr PROXY:127.0.0.1:docker.io:80,proxyport=$PROXY_PORT & 
+    socat TCP-LISTEN:$LOCAL_HTTP_PORT,fork,reuseaddr PROXY:127.0.0.1:docker.io:80,proxyport=$PROXY_PORT & 
     echo $! >> "$PIDFILE"
-    socat TCP-LISTEN:443,fork,reuseaddr PROXY:127.0.0.1:docker.io:443,proxyport=$PROXY_PORT &
+    socat TCP-LISTEN:$LOCAL_HTTPS_PORT,fork,reuseaddr PROXY:127.0.0.1:docker.io:443,proxyport=$PROXY_PORT &
     echo $! >> "$PIDFILE"
 
     echo "代理已启动，现在可以使用 docker pull 了"
     echo "使用的代理端口: $PROXY_PORT"
+    echo "本地HTTP端口: $LOCAL_HTTP_PORT"
+    echo "本地HTTPS端口: $LOCAL_HTTPS_PORT"
     if [ -n "$0" ] && [ "$0" != "bash" ]; then
         echo "如需停止代理，请运行: sudo $0 stop"
     else
