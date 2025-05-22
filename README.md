@@ -29,17 +29,17 @@ curl -O https://raw.githubusercontent.com/cnm4ak/docker-st/refs/heads/main/docke
 chmod +x docker-st.sh
 ```
 
-1. 启动代理（默认使用7890端口）：
+2. 启动代理（默认使用7890端口）：
 ```bash
 sudo ./docker-st.sh
 ```
 
-1. 如果使用其他代理端口：
+3. 如果使用其他代理端口：
 ```bash
 sudo ./docker-st.sh -p 1087
 ```
 
-1. 停止代理：
+4. 停止代理：
 ```bash
 sudo ./docker-st.sh stop
 ```
@@ -51,9 +51,6 @@ sudo ./docker-st.sh stop
 ```bash
 # 格式：ssh -R [远程主机端口]:[本地主机]:[本地端口] [远程主机]
 ssh -R 7890:localhost:7890 user@remote-server
-
-# 例如：将本地 7890 端口转发到远程服务器的 7890 端口
-ssh -R 7890:localhost:7890 root@example.com
 ```
 
 2. 第二步：在远程服务器上运行脚本

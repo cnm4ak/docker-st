@@ -31,36 +31,8 @@ fi
 # PID文件路径
 PIDFILE="/tmp/docker-proxy-socat.pid"
 
-# 停止代理的函数
-stop_proxy() {
-    if [ -f "$PIDFILE" ]; then
-        echo "正在关闭 socat 代理进程..."
-        while read pid; do
-            kill $pid 2>/dev/null || true
-        done < "$PIDFILE"
-        rm -f "$PIDFILE"
-    else
-        echo "正在查找并关闭 socat 代理进程..."
-        pkill -f "socat TCP-LISTEN:80" 2>/dev/null || true
-        pkill -f "socat TCP-LISTEN:443" 2>/dev/null || true
-    fi
-
-    if [ -f /etc/hosts.backup.2628 ]; then
-        echo "正在恢复原始hosts文件..."
-        cp /etc/hosts.backup.2628 /etc/hosts
-        rm -f /etc/hosts.backup.2628
-    else
-        echo "未找到hosts备份文件，正在清理hosts文件中的docker条目..."
-        if [ "$OS" = "Darwin" ]; then
-            sed -i '' '/docker\.io/d' /etc/hosts
-        else
-            sed -i '/docker\.io/d' /etc/hosts
-        fi
-    fi
-
-    echo "代理已关闭"
-    exit 0
-}
+# 固定备份文件路径
+BACKUP_FILE="/tmp/docker-proxy-hosts-backup"
 
 # 启动代理的函数
 start_proxy() {
@@ -76,10 +48,17 @@ start_proxy() {
         exit 1
     fi
 
-    # 备份hosts文件
-    cp /etc/hosts /etc/hosts.backup.2628
+    # 检查socat进程是否已存在
+    if pgrep -f "socat TCP-LISTEN:80" > /dev/null || pgrep -f "socat TCP-LISTEN:443" > /dev/null; then
+        echo "代理已启动，无需重复操作"
+        exit 0
+    fi
 
-    # 添加Docker域名解析
+    # 备份hosts文件
+    echo "正在备份原始hosts文件到 $BACKUP_FILE..."
+    cp /etc/hosts "$BACKUP_FILE"
+
+    # 添加Docker域名解析到临时文件
     cat << EOF >> /etc/hosts
 127.0.0.1 registry-1.docker.io
 127.0.0.1 auth.docker.io
@@ -101,6 +80,32 @@ EOF
     else
         echo "如需停止代理，请下载脚本后运行: sudo ./docker-proxy.sh stop"
     fi
+}
+
+# 停止代理的函数
+stop_proxy() {
+    if [ -f "$PIDFILE" ]; then
+        echo "正在关闭 socat 代理进程..."
+        while read pid; do
+            kill $pid 2>/dev/null || true
+        done < "$PIDFILE"
+        rm -f "$PIDFILE"
+    else
+        echo "正在查找并关闭 socat 代理进程..."
+        pkill -f "socat TCP-LISTEN:80" 2>/dev/null || true
+        pkill -f "socat TCP-LISTEN:443" 2>/dev/null || true
+    fi
+
+    # 恢复原始hosts文件
+    if [ -f "$BACKUP_FILE" ]; then
+        echo "正在从 $BACKUP_FILE 恢复原始hosts文件..."
+        mv "$BACKUP_FILE" /etc/hosts
+    else
+        echo "未找到hosts备份文件，无法恢复。"
+    fi
+
+    echo "代理已关闭"
+    exit 0
 }
 
 # 主逻辑
